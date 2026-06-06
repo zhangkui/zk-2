@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import get_current_user, require_roles
+from app.config import utc_now
 from app.models import (
     InventoryOperation, OperationType, Warning,
     WarningType, WarningStatus, User, UserRole
@@ -79,7 +80,7 @@ def handle_warning(
         raise HTTPException(status_code=404, detail="预警不存在")
 
     warning.status = data.status
-    warning.handled_at = datetime.utcnow()
+    warning.handled_at = utc_now()
     warning.handled_by = current_user.id
     warning.handled_remark = data.handled_remark
 
@@ -103,7 +104,7 @@ def get_dashboard_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    now = datetime.utcnow()
+    now = utc_now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
     total_materials = db.query(Material).filter(Material.is_active == True).count()

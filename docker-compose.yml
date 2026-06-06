@@ -12,10 +12,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U reagent"]
+      test: ["CMD-SHELL", "pg_isready -U reagent -d reagent_tracking"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
 
   backend:
     build:
@@ -25,12 +26,15 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://reagent:reagent123@db:5432/reagent_tracking
-      - SECRET_KEY=your-secret-key-change-in-production
+      - SECRET_KEY=change-this-secret-key-in-production-env
+      - ACCESS_TOKEN_EXPIRE_MINUTES=1440
+      - WARNING_DAYS_NEAR_EXPIRY=30
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - ./backend:/app
+    restart: unless-stopped
 
   frontend:
     build:
@@ -40,6 +44,7 @@ services:
       - "80:80"
     depends_on:
       - backend
+    restart: unless-stopped
 
 volumes:
   postgres_data:

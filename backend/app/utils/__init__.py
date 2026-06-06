@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
-from app.config import settings
+from app.config import settings, utc_now
 from app.models import (
     InventoryItem, Material, InventoryStatus,
     Warning, WarningType, WarningStatus
@@ -24,7 +24,7 @@ def calculate_actual_expiry(inventory_item: InventoryItem) -> datetime:
 
 def is_expired(inventory_item: InventoryItem, now: datetime = None) -> bool:
     """判断是否已过期"""
-    now = now or datetime.utcnow()
+    now = now or utc_now()
     return calculate_actual_expiry(inventory_item) <= now
 
 
@@ -35,7 +35,7 @@ def is_near_expiry(
 ) -> bool:
     """判断是否近效期"""
     days = days or settings.WARNING_DAYS_NEAR_EXPIRY
-    now = now or datetime.utcnow()
+    now = now or utc_now()
     expiry = calculate_actual_expiry(inventory_item)
     return now < expiry <= now + timedelta(days=days)
 
@@ -49,7 +49,7 @@ def is_low_stock(inventory_item: InventoryItem) -> bool:
 
 def can_use(inventory_item: InventoryItem, now: datetime = None) -> bool:
     """判断库存是否可以领用"""
-    now = now or datetime.utcnow()
+    now = now or utc_now()
     if inventory_item.status in (InventoryStatus.SCRAPPED, InventoryStatus.USED_UP):
         return False
     if is_expired(inventory_item, now):
@@ -61,7 +61,7 @@ def can_use(inventory_item: InventoryItem, now: datetime = None) -> bool:
 
 def determine_status(inventory_item: InventoryItem, now: datetime = None) -> InventoryStatus:
     """根据当前状态和条件确定库存状态"""
-    now = now or datetime.utcnow()
+    now = now or utc_now()
 
     if inventory_item.status == InventoryStatus.SCRAPPED:
         return InventoryStatus.SCRAPPED
@@ -90,7 +90,7 @@ def determine_status(inventory_item: InventoryItem, now: datetime = None) -> Inv
 
 def check_and_create_warnings(db: Session, inventory_item: InventoryItem, now: datetime = None):
     """检查并创建预警"""
-    now = now or datetime.utcnow()
+    now = now or utc_now()
     material = inventory_item.material
 
     if is_expired(inventory_item, now):
@@ -139,7 +139,7 @@ def resolve_warnings_for_status_change(
     now: datetime = None
 ):
     """当状态改变时，解除不再需要的预警"""
-    now = now or datetime.utcnow()
+    now = now or utc_now()
 
     warnings = db.query(Warning).filter(
         Warning.inventory_item_id == inventory_item.id,
@@ -163,7 +163,7 @@ def resolve_warnings_for_status_change(
 
 def scan_all_warnings(db: Session):
     """定时扫描所有库存，更新状态并创建预警"""
-    now = datetime.utcnow()
+    now = utc_now()
     items = db.query(InventoryItem).filter(
         InventoryItem.status != InventoryStatus.SCRAPPED
     ).all()

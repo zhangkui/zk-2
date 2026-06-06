@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
+import time
+import logging
 
 from app.database import Base, engine, SessionLocal
 from app.models import User, UserRole, SystemConfig, Material, InventoryItem
@@ -10,6 +12,28 @@ from app.config import settings
 from app.utils import scan_all_warnings
 
 from app.routers import auth, admin, inventory, monitoring
+
+logger = logging.getLogger(__name__)
+
+
+def wait_for_db(max_retries: int = 10, retry_interval: int = 3):
+    """等待数据库连接就绪"""
+    from sqlalchemy import text
+    retries = 0
+    while retries < max_retries:
+        try:
+            db = SessionLocal()
+            db.execute(text("SELECT 1"))
+            db.close()
+            logger.info("Database connection established successfully")
+            return True
+        except Exception as e:
+            retries += 1
+            logger.warning(f"Database connection attempt {retries}/{max_retries} failed: {e}")
+            if retries < max_retries:
+                time.sleep(retry_interval)
+    logger.error("Failed to connect to database after multiple attempts")
+    return False
 
 
 def init_data():
@@ -80,6 +104,7 @@ def start_scheduler():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    wait_for_db()
     Base.metadata.create_all(bind=engine)
     init_data()
     scheduler = start_scheduler()

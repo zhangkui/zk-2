@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.models import (
     UserRole, MaterialCategory, InventoryStatus,
@@ -36,12 +36,10 @@ class UserUpdate(BaseModel):
 
 
 class UserResponse(UserBase):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     is_active: bool
     created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 class MaterialBase(BaseModel):
@@ -73,13 +71,11 @@ class MaterialUpdate(BaseModel):
 
 
 class MaterialResponse(MaterialBase):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     is_active: bool
     created_at: datetime
     updated_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 class InventoryItemBase(BaseModel):
@@ -106,6 +102,7 @@ class OpenInventoryRequest(BaseModel):
 
 
 class InventoryItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     material_id: int
     material: Optional[MaterialResponse] = None
@@ -121,9 +118,6 @@ class InventoryItemResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
-
 
 class InventoryOperationBase(BaseModel):
     inventory_item_id: int
@@ -137,6 +131,7 @@ class InventoryOperationCreate(InventoryOperationBase):
 
 
 class InventoryOperationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     inventory_item_id: int
     operation_type: OperationType
@@ -148,11 +143,9 @@ class InventoryOperationResponse(BaseModel):
     operation_time: datetime
     remark: Optional[str] = None
 
-    class Config:
-        from_attributes = True
-
 
 class WarningResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     warning_type: WarningType
     inventory_item_id: int
@@ -163,9 +156,6 @@ class WarningResponse(BaseModel):
     handled_at: Optional[datetime] = None
     handled_by: Optional[int] = None
     handled_remark: Optional[str] = None
-
-    class Config:
-        from_attributes = True
 
 
 class WarningHandleRequest(BaseModel):

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from enum import Enum as PyEnum
 from sqlalchemy import (
     Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, Enum
@@ -6,6 +6,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from app.database import Base
+from app.config import utc_now
 
 
 class UserRole(str, PyEnum):
@@ -64,7 +65,7 @@ class User(Base):
     hashed_password = Column(String(200), nullable=False)
     role = Column(Enum(UserRole), default=UserRole.VIEWER, nullable=False)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     operations = relationship("InventoryOperation", back_populates="operator")
     warnings_handled = relationship("Warning", back_populates="handled_by_user")
@@ -84,8 +85,8 @@ class Material(Base):
     open_validity_days = Column(Integer, comment="开封后有效天数")
     description = Column(Text)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     inventory_items = relationship("InventoryItem", back_populates="material")
 
@@ -103,8 +104,8 @@ class InventoryItem(Base):
     status = Column(Enum(InventoryStatus), default=InventoryStatus.NORMAL)
     location = Column(String(100))
     remark = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     material = relationship("Material", back_populates="inventory_items")
     operations = relationship("InventoryOperation", back_populates="inventory_item")
@@ -128,7 +129,7 @@ class InventoryOperation(Base):
     quantity_before = Column(Float)
     quantity_after = Column(Float)
     operator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    operation_time = Column(DateTime, default=datetime.utcnow)
+    operation_time = Column(DateTime, default=utc_now)
     remark = Column(Text)
 
     inventory_item = relationship("InventoryItem", back_populates="operations")
@@ -143,7 +144,7 @@ class Warning(Base):
     inventory_item_id = Column(Integer, ForeignKey("inventory_items.id"), nullable=False)
     message = Column(Text, nullable=False)
     status = Column(Enum(WarningStatus), default=WarningStatus.ACTIVE)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     handled_at = Column(DateTime)
     handled_by = Column(Integer, ForeignKey("users.id"))
     handled_remark = Column(Text)
@@ -159,4 +160,4 @@ class SystemConfig(Base):
     config_key = Column(String(100), unique=True, nullable=False)
     config_value = Column(Text)
     description = Column(Text)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)

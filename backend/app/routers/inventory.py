@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import require_roles, get_current_user
+from app.config import utc_now
 from app.models import (
     InventoryItem, Material, InventoryStatus,
     InventoryOperation, OperationType, User, UserRole
@@ -54,7 +55,7 @@ def list_inventory(
 
     items = query.order_by(InventoryItem.id.desc()).all()
 
-    now = datetime.utcnow()
+    now = utc_now()
     result = []
     for item in items:
         if only_expired and not is_expired(item, now):
@@ -96,7 +97,7 @@ def create_inventory(
     db.add(item)
     db.flush()
 
-    now = datetime.utcnow()
+    now = utc_now()
     item.status = determine_status(item, now)
     check_and_create_warnings(db, item, now)
 
@@ -133,7 +134,7 @@ def open_inventory(
     if item.opened:
         raise HTTPException(status_code=400, detail="该库存已开封，不可重复开封")
 
-    now = datetime.utcnow()
+    now = utc_now()
     item.opened = True
     item.open_time = now
     item.status = determine_status(item, now)
@@ -167,7 +168,7 @@ def outbound_inventory(
     if not item:
         raise HTTPException(status_code=404, detail="库存不存在")
 
-    now = datetime.utcnow()
+    now = utc_now()
     if not can_use(item, now):
         if is_expired(item, now):
             raise HTTPException(status_code=400, detail="该库存已过期，禁止领用")
@@ -219,7 +220,7 @@ def return_inventory(
     if request.quantity_change <= 0:
         raise HTTPException(status_code=400, detail="归还数量必须大于0")
 
-    now = datetime.utcnow()
+    now = utc_now()
     qty_before = item.quantity
     item.quantity += request.quantity_change
 
@@ -260,7 +261,7 @@ def scrap_inventory(
     qty_change = request.quantity_change if request.quantity_change > 0 else item.quantity
     item.quantity = max(0, item.quantity - qty_change)
 
-    now = datetime.utcnow()
+    now = utc_now()
     if item.quantity == 0 and qty_change == qty_before:
         item.status = InventoryStatus.SCRAPPED
     else:
@@ -306,7 +307,7 @@ def inventory_check(
     qty_diff = actual_qty - qty_before
     item.quantity = actual_qty
 
-    now = datetime.utcnow()
+    now = utc_now()
     item.status = determine_status(item, now)
     resolve_warnings_for_status_change(db, item, now)
     check_and_create_warnings(db, item, now)
