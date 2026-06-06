@@ -1,0 +1,52 @@
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #f5f7fa;
+  margin: 0;
+}
+
+.status-normal { color: #67c23a; }
+.status-opened { color: #409eff; }
+.status-low_stock { color: #e6a23c; }
+.status-near_expiry { color: #f56c6c; background: #fef0f0; }
+.status-expired { color: #f56c6c; background: #fde2e2; font-weight: bold; }
+.status-scrapped { color: #909399; text-decoration: line-through; }
+.status-used_up { color: #909399; }
+
+.tag-normal { background: #f0f9eb; border-color: #e1f3d8; color: #67c23a; }
+.tag-opened { background: #ecf5ff; border-color: #d9ecff; color: #409eff; }
+.tag-low_stock { background: #fdf6ec; border-color: #faecd8; color: #e6a23c; }
+.tag-near_expiry { background: #fef0f0; border-color: #fde2e2; color: #f56c6c; }
+.tag-expired { background: #fef0f0; border-color: #fbc4c4; color: #f56c6c; }
+.tag-scrapped { background: #f4f4f5; border-color: #e9e9eb; color: #909399; }
+.tag-used_up { background: #f4f4f5; border-color: #e9e9eb; color: #909399; }
+
+.page-container {
+  padding: 20px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.page-title {
+  font-size: 20px;
+  font-weight: bold;
+  color: #303133;
+  margin: 0;
+}
+
+.filter-bar {
+  background: white;
+  padding: 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.table-container {
+  background: white;
+  padding: 16px;
+  border-radius: 4px;
+}
