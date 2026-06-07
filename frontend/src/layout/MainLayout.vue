@@ -98,6 +98,7 @@ const pwdForm = ref({ old_password: '', new_password: '' })
 const menuRoutes = computed(() => {
   const children = router.options.routes.find(r => r.path === '/')?.children || []
   return children.filter(r => {
+    if (r.meta?.hidden) return false
     if (r.meta?.roles && userStore.userInfo) {
       if (!r.meta.roles.includes(userStore.userInfo.role) && userStore.userInfo.role !== 'admin') {
         return false

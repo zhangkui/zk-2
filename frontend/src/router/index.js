@@ -46,6 +46,24 @@ const routes = [
         meta: { title: '操作记录', icon: 'List' }
       },
       {
+        path: 'stocktake',
+        name: 'Stocktake',
+        component: () => import('@/views/StocktakeList.vue'),
+        meta: { title: '盘点任务管理', icon: 'Finished' }
+      },
+      {
+        path: 'stocktake/create',
+        name: 'StocktakeCreate',
+        component: () => import('@/views/StocktakeCreate.vue'),
+        meta: { title: '创建盘点任务', icon: 'Plus', hidden: true }
+      },
+      {
+        path: 'stocktake/:id',
+        name: 'StocktakeDetail',
+        component: () => import('@/views/StocktakeDetail.vue'),
+        meta: { title: '盘点任务详情', icon: 'View', hidden: true }
+      },
+      {
         path: 'users',
         name: 'Users',
         component: () => import('@/views/Users.vue'),

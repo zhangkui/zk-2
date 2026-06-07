@@ -88,3 +88,38 @@ export function getRoleLabel(role) {
   const item = ROLE_OPTIONS.find(o => o.value === role)
   return item ? item.label : role
 }
+
+export const STOCKTAKE_TASK_STATUS_OPTIONS = [
+  { value: 'draft', label: '草稿', type: 'info' },
+  { value: 'in_progress', label: '进行中', type: 'primary' },
+  { value: 'pending_review', label: '待复核', type: 'warning' },
+  { value: 'confirmed', label: '已确认', type: 'success' },
+  { value: 'closed', label: '已关闭', type: 'info' }
+]
+
+export const STOCKTAKE_ITEM_STATUS_OPTIONS = [
+  { value: 'not_entered', label: '未录入', type: 'info' },
+  { value: 'saved', label: '已暂存', type: 'primary' },
+  { value: 'submitted', label: '已提交', type: 'warning' },
+  { value: 'confirmed', label: '已确认', type: 'success' }
+]
+
+export function getStocktakeTaskLabel(status) {
+  const item = STOCKTAKE_TASK_STATUS_OPTIONS.find(o => o.value === status)
+  return item ? item.label : status
+}
+
+export function getStocktakeTaskType(status) {
+  const item = STOCKTAKE_TASK_STATUS_OPTIONS.find(o => o.value === status)
+  return item ? item.type : 'info'
+}
+
+export function getStocktakeItemLabel(status) {
+  const item = STOCKTAKE_ITEM_STATUS_OPTIONS.find(o => o.value === status)
+  return item ? item.label : status
+}
+
+export function getStocktakeItemType(status) {
+  const item = STOCKTAKE_ITEM_STATUS_OPTIONS.find(o => o.value === status)
+  return item ? item.type : 'info'
+}

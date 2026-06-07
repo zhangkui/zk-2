@@ -53,6 +53,32 @@
           </div>
         </el-card>
       </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover" class="stat-card" @click="$router.push('/stocktake')">
+          <div class="stat-content">
+            <div class="stat-info">
+              <div class="stat-label">进行中盘点任务</div>
+              <div class="stat-value">{{ stats?.ongoing_stocktake_tasks || 0 }}</div>
+            </div>
+            <div class="stat-icon icon-cyan">
+              <el-icon size="32"><Finished /></el-icon>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover" class="stat-card warning-card" @click="$router.push('/stocktake?status=pending_review')">
+          <div class="stat-content">
+            <div class="stat-info">
+              <div class="stat-label">待复核差异数</div>
+              <div class="stat-value">{{ stats?.pending_review_diffs || 0 }}</div>
+            </div>
+            <div class="stat-icon icon-red">
+              <el-icon size="32"><WarningFilled /></el-icon>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
     </el-row>
 
     <el-row :gutter="20" class="chart-row">
@@ -203,6 +229,8 @@ onMounted(fetchData)
 .icon-green { background: linear-gradient(135deg, #11998e, #38ef7d); }
 .icon-orange { background: linear-gradient(135deg, #f093fb, #f5576c); }
 .icon-purple { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+.icon-cyan { background: linear-gradient(135deg, #00c6ff, #0072ff); }
+.icon-red { background: linear-gradient(135deg, #ff416c, #ff4b2b); }
 
 .warning-card .stat-value { color: #f56c6c; }
 

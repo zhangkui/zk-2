@@ -2,9 +2,11 @@
   <div class="page-container">
     <div class="page-header">
       <h2 class="page-title">操作记录</h2>
-      <el-button type="primary" @click="exportData" plain>
-        <el-icon><Download /></el-icon>导出
-      </el-button>
+      <div class="header-actions">
+        <el-button type="primary" plain @click="exportDiff" :disabled="!filters.stocktake_task_id">
+          <el-icon><Download /></el-icon>导出盘点差异明细
+        </el-button>
+      </div>
     </div>
 
     <div class="filter-bar">
@@ -16,6 +18,22 @@
               :key="item.value"
               :label="item.label"
               :value="item.value"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="盘点任务">
+          <el-select
+            v-model="filters.stocktake_task_id"
+            placeholder="全部"
+            clearable
+            filterable
+            style="width: 260px"
+          >
+            <el-option
+              v-for="t in stocktakeTasks"
+              :key="t.id"
+              :label="`${t.task_no} - ${t.title}`"
+              :value="t.id"
             />
           </el-select>
         </el-form-item>
@@ -46,6 +64,16 @@
         <el-table-column label="操作类型" width="100">
           <template #default="{ row }">
             <el-tag size="small">{{ getOperationTypeLabel(row.operation_type) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="所属盘点任务" width="200" v-if="stocktakeTasks.length">
+          <template #default="{ row }">
+            <template v-if="row.stocktake_task_id">
+              <el-button type="primary" link size="small" @click="goStocktake(row.stocktake_task_id)">
+                {{ getStocktakeTaskNo(row.stocktake_task_id) }}
+              </el-button>
+            </template>
+            <span v-else>-</span>
           </template>
         </el-table-column>
         <el-table-column label="批次号" width="140">
@@ -92,23 +120,44 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
 import { listOperations } from '@/api/monitoring'
+import { listStocktakeTasks } from '@/api/stocktake'
+import { exportOperationsDiff } from '@/api/stocktake'
 import { OPERATION_TYPE_OPTIONS, getOperationTypeLabel } from '@/utils/dict'
 
+const router = useRouter()
 const loading = ref(false)
 const operations = ref([])
+const stocktakeTasks = ref([])
 const dateRange = ref([])
 
 const filters = reactive({
   operation_type: '',
-  operator_id: ''
+  operator_id: '',
+  stocktake_task_id: ''
 })
 
 function formatDate(d) {
   return d ? dayjs(d).format('YYYY-MM-DD HH:mm:ss') : '-'
+}
+
+function getStocktakeTaskNo(id) {
+  const t = stocktakeTasks.value.find(x => x.id === id)
+  return t ? t.task_no : `#${id}`
+}
+
+function goStocktake(id) {
+  router.push(`/stocktake/${id}`)
+}
+
+async function fetchStocktakeTasks() {
+  try {
+    stocktakeTasks.value = await listStocktakeTasks()
+  } catch (e) {}
 }
 
 async function fetchData() {
@@ -116,6 +165,7 @@ async function fetchData() {
   try {
     const params = { limit: 500 }
     if (filters.operation_type) params.operation_type = filters.operation_type
+    if (filters.stocktake_task_id) params.stocktake_task_id = filters.stocktake_task_id
     if (dateRange.value && dateRange.value.length === 2) {
       params.start_date = dateRange.value[0]
       params.end_date = dateRange.value[1]
@@ -129,13 +179,33 @@ async function fetchData() {
 
 function resetFilter() {
   filters.operation_type = ''
+  filters.stocktake_task_id = ''
   dateRange.value = []
   fetchData()
 }
 
-function exportData() {
-  ElMessage.info('导出功能待实现')
+async function exportDiff() {
+  if (!filters.stocktake_task_id) {
+    ElMessage.warning('请先选择盘点任务')
+    return
+  }
+  try {
+    const blob = await exportOperationsDiff({ stocktake_task_id: filters.stocktake_task_id })
+    const t = stocktakeTasks.value.find(x => x.id === filters.stocktake_task_id)
+    const url = window.URL.createObjectURL(new Blob([blob]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `stocktake_diff_details_${t?.task_no || filters.stocktake_task_id}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    ElMessage.success('导出成功')
+  } catch (e) {}
 }
 
-onMounted(fetchData)
+onMounted(async () => {
+  await fetchStocktakeTasks()
+  fetchData()
+})
 </script>
