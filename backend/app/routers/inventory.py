@@ -8,14 +8,16 @@ from app.deps import require_roles, get_current_user
 from app.config import utc_now
 from app.models import (
     InventoryItem, Material, InventoryStatus,
-    InventoryOperation, OperationType, User, UserRole
+    InventoryOperation, OperationType, User, UserRole,
+    StockReservation, RequisitionStatus
 )
 from app.schemas import (
     InventoryItemCreate, InventoryItemUpdate, InventoryItemResponse,
-    OpenInventoryRequest, InventoryOperationCreate, InventoryOperationResponse
+    OpenInventoryRequest, InventoryOperationCreate, InventoryOperationResponse,
+    ReserveRequest, ReleaseReserveRequest, StockReservationResponse
 )
 from app.utils import (
-    determine_status, is_expired, can_use,
+    determine_status, is_expired, can_use, can_reserve,
     check_and_create_warnings, resolve_warnings_for_status_change
 )
 
@@ -25,6 +27,7 @@ router = APIRouter(prefix="/inventory", tags=["库存管理"])
 def _enrich_response(db: Session, item: InventoryItem) -> InventoryItemResponse:
     resp = InventoryItemResponse.model_validate(item)
     resp.actual_expiry_date = item.actual_expiry_date
+    resp.available_quantity = item.available_quantity
     resp.material = item.material
     return resp
 
@@ -342,3 +345,130 @@ def get_inventory_operations(
     for op in operations:
         op.operator
     return operations
+
+
+@router.post("/{item_id}/reserve", response_model=StockReservationResponse)
+def reserve_inventory(
+    item_id: int,
+    request: ReserveRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.OPERATOR))
+):
+    item = db.query(InventoryItem).filter(InventoryItem.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="库存不存在")
+
+    now = utc_now()
+    if not can_reserve(item, now):
+        if is_expired(item, now):
+            raise HTTPException(status_code=400, detail="该库存已过期，禁止预占")
+        if item.status == InventoryStatus.SCRAPPED:
+            raise HTTPException(status_code=400, detail="该库存已报废，禁止预占")
+        if item.status == InventoryStatus.USED_UP:
+            raise HTTPException(status_code=400, detail="该库存已用完，禁止预占")
+        raise HTTPException(status_code=400, detail="该库存不可预占")
+
+    if request.quantity > item.available_quantity:
+        raise HTTPException(
+            status_code=400,
+            detail=f"预占数量超出可用数量，可用数量：{item.available_quantity}"
+        )
+
+    reserved_before = item.reserved_quantity
+    item.reserved_quantity += request.quantity
+
+    reservation = StockReservation(
+        inventory_item_id=item.id,
+        quantity=request.quantity,
+        operator_id=current_user.id,
+        remark=request.remark
+    )
+    db.add(reservation)
+    db.flush()
+
+    operation = InventoryOperation(
+        inventory_item_id=item.id,
+        operation_type=OperationType.RESERVE,
+        quantity_change=0,
+        quantity_before=item.quantity,
+        quantity_after=item.quantity,
+        operator_id=current_user.id,
+        remark=request.remark or f"预占库存 {request.quantity} {item.material.unit}（预占: {reserved_before} → {item.reserved_quantity}）"
+    )
+    db.add(operation)
+
+    db.commit()
+    db.refresh(reservation)
+    reservation.operator
+    reservation.inventory_item
+    return reservation
+
+
+@router.get("/{item_id}/reservations", response_model=List[StockReservationResponse])
+def list_inventory_reservations(
+    item_id: int,
+    only_active: bool = Query(False),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    item = db.query(InventoryItem).filter(InventoryItem.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="库存不存在")
+    query = db.query(StockReservation).filter(StockReservation.inventory_item_id == item_id)
+    if only_active:
+        query = query.filter(StockReservation.is_released == False)
+    reservations = query.order_by(StockReservation.created_at.desc()).all()
+    for r in reservations:
+        r.operator
+        r.inventory_item
+    return reservations
+
+
+@router.post("/reservations/{reservation_id}/release", response_model=StockReservationResponse)
+def release_reservation(
+    reservation_id: int,
+    request: ReleaseReserveRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.OPERATOR))
+):
+    reservation = db.query(StockReservation).filter(StockReservation.id == reservation_id).first()
+    if not reservation:
+        raise HTTPException(status_code=404, detail="预占记录不存在")
+    if reservation.is_released:
+        raise HTTPException(status_code=400, detail="该预占已释放，不可重复释放")
+
+    item = reservation.inventory_item
+    if not item:
+        raise HTTPException(status_code=400, detail="关联库存不存在")
+
+    if reservation.requisition_id:
+        from app.models import Requisition
+        req = db.query(Requisition).filter(Requisition.id == reservation.requisition_id).first()
+        if req and req.status == RequisitionStatus.PENDING:
+            raise HTTPException(status_code=400, detail="该预占已关联待审批的领用申请，请先处理申请")
+
+    reserved_before = item.reserved_quantity
+    release_qty = min(reservation.quantity, item.reserved_quantity)
+    item.reserved_quantity = max(0, item.reserved_quantity - release_qty)
+
+    reservation.is_released = True
+    reservation.released_at = utc_now()
+    reservation.released_by = current_user.id
+    reservation.release_remark = request.remark
+
+    operation = InventoryOperation(
+        inventory_item_id=item.id,
+        operation_type=OperationType.RELEASE_RESERVE,
+        quantity_change=0,
+        quantity_before=item.quantity,
+        quantity_after=item.quantity,
+        operator_id=current_user.id,
+        remark=request.remark or f"释放预占 {release_qty} {item.material.unit}（预占: {reserved_before} → {item.reserved_quantity}）"
+    )
+    db.add(operation)
+
+    db.commit()
+    db.refresh(reservation)
+    reservation.operator
+    reservation.inventory_item
+    return reservation

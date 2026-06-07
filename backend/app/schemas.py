@@ -5,7 +5,8 @@ from pydantic import BaseModel, Field, ConfigDict
 from app.models import (
     UserRole, MaterialCategory, InventoryStatus,
     OperationType, WarningType, WarningStatus,
-    StocktakeTaskStatus, StocktakeItemStatus
+    StocktakeTaskStatus, StocktakeItemStatus,
+    RequisitionStatus
 )
 
 
@@ -109,6 +110,8 @@ class InventoryItemResponse(BaseModel):
     material: Optional[MaterialResponse] = None
     batch_no: str
     quantity: float
+    reserved_quantity: float = 0
+    available_quantity: Optional[float] = None
     original_expiry_date: datetime
     open_time: Optional[datetime] = None
     opened: bool
@@ -175,6 +178,8 @@ class DashboardStats(BaseModel):
     total_operations_today: int
     ongoing_stocktake_tasks: int
     pending_review_diffs: int
+    pending_requisitions: int = 0
+    total_reserved_quantity: float = 0.0
 
 
 class PasswordChange(BaseModel):
@@ -251,3 +256,91 @@ class StocktakeTaskCloseRequest(BaseModel):
 class StocktakeBatchUpdateRequest(BaseModel):
     items: List[StocktakeItemUpdate]
     item_ids: List[int]
+
+
+class ReserveRequest(BaseModel):
+    quantity: float = Field(..., gt=0)
+    remark: Optional[str] = None
+
+
+class ReleaseReserveRequest(BaseModel):
+    remark: Optional[str] = None
+
+
+class StockReservationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    inventory_item_id: int
+    inventory_item: Optional[InventoryItemResponse] = None
+    quantity: float
+    requisition_id: Optional[int] = None
+    operator_id: int
+    operator: Optional[UserResponse] = None
+    remark: Optional[str] = None
+    created_at: datetime
+    released_at: Optional[datetime] = None
+    released_by: Optional[int] = None
+    release_remark: Optional[str] = None
+    is_released: bool
+
+
+class RequisitionItemCreate(BaseModel):
+    inventory_item_id: int
+    quantity: float = Field(..., gt=0)
+    remark: Optional[str] = None
+
+
+class RequisitionCreate(BaseModel):
+    title: str
+    apply_remark: Optional[str] = None
+    items: List[RequisitionItemCreate] = Field(..., min_length=1)
+
+
+class RequisitionItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    requisition_id: int
+    inventory_item_id: int
+    inventory_item: Optional[InventoryItemResponse] = None
+    material_id: int
+    material: Optional[MaterialResponse] = None
+    quantity: float
+    actual_outbound_quantity: Optional[float] = None
+    remark: Optional[str] = None
+
+
+class RequisitionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    requisition_no: str
+    title: str
+    status: RequisitionStatus
+    applicant_id: int
+    applicant: Optional[UserResponse] = None
+    apply_remark: Optional[str] = None
+    created_at: datetime
+    approved_by: Optional[int] = None
+    approved_at: Optional[datetime] = None
+    approve_remark: Optional[str] = None
+    approver: Optional[UserResponse] = None
+    rejected_by: Optional[int] = None
+    rejected_at: Optional[datetime] = None
+    reject_remark: Optional[str] = None
+    rejecter: Optional[UserResponse] = None
+    cancelled_by: Optional[int] = None
+    cancelled_at: Optional[datetime] = None
+    cancel_remark: Optional[str] = None
+    canceller: Optional[UserResponse] = None
+    items: Optional[List[RequisitionItemResponse]] = None
+
+
+class RequisitionApproveRequest(BaseModel):
+    approve_remark: Optional[str] = None
+
+
+class RequisitionRejectRequest(BaseModel):
+    reject_remark: str = Field(..., min_length=1)
+
+
+class RequisitionCancelRequest(BaseModel):
+    cancel_remark: Optional[str] = None

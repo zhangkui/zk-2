@@ -22,7 +22,11 @@ export const OPERATION_TYPE_OPTIONS = [
   { value: 'return', label: '归还' },
   { value: 'scrap', label: '报废' },
   { value: 'inventory_check', label: '盘点' },
-  { value: 'adjust', label: '调整' }
+  { value: 'adjust', label: '调整' },
+  { value: 'reserve', label: '预占' },
+  { value: 'release_reserve', label: '释放预占' },
+  { value: 'approve_requisition', label: '审批领用' },
+  { value: 'reject_requisition', label: '驳回领用' }
 ]
 
 export const WARNING_TYPE_OPTIONS = [
@@ -121,5 +125,22 @@ export function getStocktakeItemLabel(status) {
 
 export function getStocktakeItemType(status) {
   const item = STOCKTAKE_ITEM_STATUS_OPTIONS.find(o => o.value === status)
+  return item ? item.type : 'info'
+}
+
+export const REQUISITION_STATUS_OPTIONS = [
+  { value: 'pending', label: '待审批', type: 'warning' },
+  { value: 'approved', label: '已通过', type: 'success' },
+  { value: 'rejected', label: '已驳回', type: 'danger' },
+  { value: 'cancelled', label: '已取消', type: 'info' }
+]
+
+export function getRequisitionStatusLabel(status) {
+  const item = REQUISITION_STATUS_OPTIONS.find(o => o.value === status)
+  return item ? item.label : status
+}
+
+export function getRequisitionStatusType(status) {
+  const item = REQUISITION_STATUS_OPTIONS.find(o => o.value === status)
   return item ? item.type : 'info'
 }

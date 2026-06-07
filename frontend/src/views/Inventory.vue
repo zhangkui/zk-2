@@ -71,10 +71,27 @@
           </template>
         </el-table-column>
         <el-table-column label="批次号" prop="batch_no" width="140" />
-        <el-table-column label="当前数量" width="100" align="right">
+        <el-table-column label="实际数量" width="110" align="right">
           <template #default="{ row }">
             <span :class="row.quantity <= (row.material?.min_stock || 0) ? 'status-low_stock' : ''">
               {{ row.quantity }} {{ row.material?.unit }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="预占数量" width="100" align="right">
+          <template #default="{ row }">
+            <span v-if="row.reserved_quantity > 0" class="status-warning">
+              {{ row.reserved_quantity }} {{ row.material?.unit }}
+            </span>
+            <span v-else style="color: #909399;">
+              -
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="可用数量" width="110" align="right">
+          <template #default="{ row }">
+            <span :class="row.available_quantity <= (row.material?.min_stock || 0) ? 'status-low_stock' : ''" :style="{ fontWeight: 'bold' }">
+              {{ row.available_quantity }} {{ row.material?.unit }}
             </span>
           </template>
         </el-table-column>
@@ -103,7 +120,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="260" fixed="right">
+        <el-table-column label="操作" width="300" fixed="right">
           <template #default="{ row }">
             <el-dropdown trigger="click" @command="cmd => handleOperation(cmd, row)">
               <el-button type="primary" size="small">
@@ -116,9 +133,15 @@
                   </el-dropdown-item>
                   <el-dropdown-item
                     command="outbound"
-                    :disabled="row.status === 'scrapped' || row.status === 'expired' || row.quantity <= 0"
+                    :disabled="row.status === 'scrapped' || row.status === 'expired' || row.available_quantity <= 0"
                   >
                     <el-icon><Minus /></el-icon>领用
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    command="reserve"
+                    :disabled="row.status === 'scrapped' || row.status === 'expired' || row.available_quantity <= 0 || row.status === 'used_up'"
+                  >
+                    <el-icon><Lock /></el-icon>预占
                   </el-dropdown-item>
                   <el-dropdown-item command="return" :disabled="row.status === 'scrapped'">
                     <el-icon><RefreshLeft /></el-icon>归还
@@ -213,10 +236,14 @@
         <el-form-item label="批次">
           <span>{{ currentItem?.batch_no }}</span>
         </el-form-item>
+        <el-form-item label="可用数量" v-if="opType === 'reserve'">
+          <span>{{ currentItem?.available_quantity }} {{ currentItem?.material?.unit }}</span>
+        </el-form-item>
         <el-form-item v-if="opType !== 'open' && opType !== 'scrap'" label="数量">
           <el-input-number
             v-model="opForm.quantity_change"
             :min="0.01"
+            :max="opType === 'reserve' ? (currentItem?.available_quantity || 0.01) : undefined"
             step="1"
             style="width: 100%"
           />
@@ -294,7 +321,8 @@ import { listMaterials } from '@/api/admin'
 import {
   listInventory, createInventory, openInventory,
   outboundInventory, returnInventory, scrapInventory,
-  inventoryCheck, getInventoryOperations
+  inventoryCheck, getInventoryOperations,
+  reserveInventory
 } from '@/api/inventory'
 import {
   STATUS_OPTIONS, getStatusLabel, getOperationTypeLabel
@@ -346,6 +374,7 @@ const opDialogTitle = computed(() => {
   const map = {
     open: '开封操作',
     outbound: '领用操作',
+    reserve: '预占操作',
     return: '归还操作',
     scrap: '报废操作',
     check: '盘点操作'
@@ -422,7 +451,13 @@ async function handleAddSubmit() {
 function handleOperation(type, row) {
   opType.value = type
   currentItem.value = row
-  opForm.quantity_change = type === 'scrap' ? row.quantity : 1
+  if (type === 'scrap') {
+    opForm.quantity_change = row.quantity
+  } else if (type === 'reserve') {
+    opForm.quantity_change = Math.min(1, row.available_quantity)
+  } else {
+    opForm.quantity_change = 1
+  }
   opForm.remark = ''
   if (type === 'open') {
     handleOpen()
@@ -455,6 +490,11 @@ async function handleOpSubmit() {
       await scrapInventory(currentItem.value.id, data)
     } else if (opType.value === 'check') {
       await inventoryCheck(currentItem.value.id, data)
+    } else if (opType.value === 'reserve') {
+      await reserveInventory(currentItem.value.id, {
+        quantity: opForm.quantity_change,
+        remark: opForm.remark
+      })
     }
     ElMessage.success('操作成功')
     opDialogVisible.value = false
@@ -486,5 +526,9 @@ onMounted(async () => {
 }
 :deep(.el-table .status-near_expiry) {
   background: #fef0f0 !important;
+}
+.status-warning {
+  color: #e6a23c;
+  font-weight: bold;
 }
 </style>

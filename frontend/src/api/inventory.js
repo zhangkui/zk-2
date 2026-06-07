@@ -35,3 +35,15 @@ export function inventoryCheck(id, data) {
 export function getInventoryOperations(id) {
   return request.get(`/inventory/${id}/operations`)
 }
+
+export function reserveInventory(id, data) {
+  return request.post(`/inventory/${id}/reserve`, data)
+}
+
+export function listInventoryReservations(id, params = {}) {
+  return request.get(`/inventory/${id}/reservations`, { params })
+}
+
+export function releaseReservation(reservationId, data = {}) {
+  return request.post(`/inventory/reservations/${reservationId}/release`, data)
+}

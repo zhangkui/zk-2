@@ -12,7 +12,8 @@ from app.config import utc_now
 from app.models import (
     InventoryOperation, OperationType, Warning,
     WarningType, WarningStatus, User, UserRole,
-    StocktakeTask, StocktakeTaskStatus, StocktakeItem, StocktakeItemStatus
+    StocktakeTask, StocktakeTaskStatus, StocktakeItem, StocktakeItemStatus,
+    Requisition, RequisitionStatus, InventoryItem
 )
 from app.schemas import (
     InventoryOperationResponse, WarningResponse, WarningHandleRequest,
@@ -230,6 +231,15 @@ def get_dashboard_stats(
             if st_item.actual_quantity is not None and st_item.actual_quantity != st_item.snapshot_quantity:
                 pending_review_diffs += 1
 
+    pending_requisitions = db.query(Requisition).filter(
+        Requisition.status == RequisitionStatus.PENDING
+    ).count()
+
+    total_reserved_qty = db.query(InventoryItem).filter(
+        InventoryItem.reserved_quantity > 0
+    ).all()
+    total_reserved_quantity = sum(item.reserved_quantity for item in total_reserved_qty)
+
     return DashboardStats(
         total_materials=total_materials,
         total_inventory=total_inventory,
@@ -239,5 +249,7 @@ def get_dashboard_stats(
         low_stock_count=low_stock_count,
         total_operations_today=total_operations_today,
         ongoing_stocktake_tasks=ongoing_stocktake_tasks,
-        pending_review_diffs=pending_review_diffs
+        pending_review_diffs=pending_review_diffs,
+        pending_requisitions=pending_requisitions,
+        total_reserved_quantity=total_reserved_quantity
     )

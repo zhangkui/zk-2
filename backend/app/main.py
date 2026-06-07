@@ -11,7 +11,7 @@ from app.auth import hash_password
 from app.config import settings
 from app.utils import scan_all_warnings
 
-from app.routers import auth, admin, inventory, monitoring, stocktake
+from app.routers import auth, admin, inventory, monitoring, stocktake, requisitions
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +132,7 @@ app.include_router(admin.router, prefix="/api")
 app.include_router(inventory.router, prefix="/api")
 app.include_router(monitoring.router, prefix="/api")
 app.include_router(stocktake.router, prefix="/api")
+app.include_router(requisitions.router, prefix="/api")
 
 
 @app.get("/api/health")

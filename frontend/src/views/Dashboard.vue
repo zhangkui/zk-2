@@ -79,6 +79,32 @@
           </div>
         </el-card>
       </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover" class="stat-card warning-card" @click="$router.push('/requisitions?status=pending')">
+          <div class="stat-content">
+            <div class="stat-info">
+              <div class="stat-label">待审批申请数</div>
+              <div class="stat-value">{{ stats?.pending_requisitions || 0 }}</div>
+            </div>
+            <div class="stat-icon icon-yellow">
+              <el-icon size="32"><Tickets /></el-icon>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover" class="stat-card" @click="$router.push('/inventory')">
+          <div class="stat-content">
+            <div class="stat-info">
+              <div class="stat-label">当前预占库存</div>
+              <div class="stat-value">{{ stats?.total_reserved_quantity || 0 }}</div>
+            </div>
+            <div class="stat-icon icon-indigo">
+              <el-icon size="32"><Lock /></el-icon>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
     </el-row>
 
     <el-row :gutter="20" class="chart-row">
@@ -231,6 +257,8 @@ onMounted(fetchData)
 .icon-purple { background: linear-gradient(135deg, #4facfe, #00f2fe); }
 .icon-cyan { background: linear-gradient(135deg, #00c6ff, #0072ff); }
 .icon-red { background: linear-gradient(135deg, #ff416c, #ff4b2b); }
+.icon-yellow { background: linear-gradient(135deg, #f7971e, #ffd200); }
+.icon-indigo { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
 
 .warning-card .stat-value { color: #f56c6c; }
 

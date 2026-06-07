@@ -64,6 +64,24 @@ const routes = [
         meta: { title: '盘点任务详情', icon: 'View', hidden: true }
       },
       {
+        path: 'requisitions',
+        name: 'RequisitionList',
+        component: () => import('@/views/RequisitionList.vue'),
+        meta: { title: '领用申请', icon: 'Tickets' }
+      },
+      {
+        path: 'requisitions/create',
+        name: 'RequisitionCreate',
+        component: () => import('@/views/RequisitionCreate.vue'),
+        meta: { title: '新建领用申请', icon: 'Plus', hidden: true }
+      },
+      {
+        path: 'requisitions/:id',
+        name: 'RequisitionDetail',
+        component: () => import('@/views/RequisitionDetail.vue'),
+        meta: { title: '领用申请详情', icon: 'View', hidden: true }
+      },
+      {
         path: 'users',
         name: 'Users',
         component: () => import('@/views/Users.vue'),

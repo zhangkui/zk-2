@@ -59,6 +59,18 @@ def can_use(inventory_item: InventoryItem, now: datetime = None) -> bool:
     return True
 
 
+def can_reserve(inventory_item: InventoryItem, now: datetime = None) -> bool:
+    """判断库存是否可以预占"""
+    now = now or utc_now()
+    if inventory_item.status in (InventoryStatus.SCRAPPED, InventoryStatus.USED_UP, InventoryStatus.EXPIRED):
+        return False
+    if is_expired(inventory_item, now):
+        return False
+    if inventory_item.available_quantity <= 0:
+        return False
+    return True
+
+
 def determine_status(inventory_item: InventoryItem, now: datetime = None) -> InventoryStatus:
     """根据当前状态和条件确定库存状态"""
     now = now or utc_now()
