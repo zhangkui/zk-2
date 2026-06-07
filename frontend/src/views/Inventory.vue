@@ -143,6 +143,9 @@
                   >
                     <el-icon><Lock /></el-icon>预占
                   </el-dropdown-item>
+                  <el-dropdown-item command="reservations" divided>
+                    <el-icon><Tickets /></el-icon>预占记录
+                  </el-dropdown-item>
                   <el-dropdown-item command="return" :disabled="row.status === 'scrapped'">
                     <el-icon><RefreshLeft /></el-icon>归还
                   </el-dropdown-item>
@@ -308,6 +311,94 @@
       </el-timeline>
       <el-empty v-if="!operations.length" description="暂无操作记录" :image-size="80" />
     </el-dialog>
+
+    <el-dialog v-model="reservationsVisible" title="预占记录" width="750px">
+      <div style="margin-bottom: 10px; color: #606266; font-size: 13px;">
+        库存批次：<strong>{{ currentItem?.batch_no }}</strong>
+        &nbsp;&nbsp;|&nbsp;&nbsp;
+        当前预占：<strong class="status-warning">{{ currentItem?.reserved_quantity || 0 }}</strong>
+        &nbsp;&nbsp;|&nbsp;&nbsp;
+        可用数量：<strong>{{ currentItem?.available_quantity || 0 }}</strong>
+      </div>
+      <el-table :data="reservations" stripe v-loading="reservationsLoading">
+        <el-table-column label="预占ID" prop="id" width="70" />
+        <el-table-column label="预占数量" width="100" align="right">
+          <template #default="{ row }">
+            <strong>{{ row.quantity }}</strong>
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="90">
+          <template #default="{ row }">
+            <el-tag :type="row.is_released ? 'info' : 'warning'" size="small">
+              {{ row.is_released ? '已释放' : '预占中' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="关联申请单" width="150">
+          <template #default="{ row }">
+            <span v-if="row.requisition_no" style="color: #409eff;">
+              {{ row.requisition_no }}
+            </span>
+            <span v-else style="color: #909399;">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作人" width="90">
+          <template #default="{ row }">
+            {{ row.operator?.full_name || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="预占时间" width="150">
+          <template #default="{ row }">
+            {{ formatDate(row.created_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="释放信息" min-width="150">
+          <template #default="{ row }">
+            <div v-if="row.is_released">
+              <div style="font-size: 12px;">
+                {{ row.released_by_name || '-' }} · {{ formatDate(row.released_at) }}
+              </div>
+              <div v-if="row.release_remark" style="font-size: 12px; color: #909399;">
+                {{ row.release_remark }}
+              </div>
+            </div>
+            <span v-else style="color: #909399;">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="100" fixed="right">
+          <template #default="{ row }">
+            <el-button
+              type="danger"
+              link
+              size="small"
+              :disabled="row.is_released || !!row.requisition_id"
+              @click="handleReleaseReservation(row)"
+            >
+              释放
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-empty v-if="!reservationsLoading && !reservations.length" description="暂无预占记录" :image-size="80" />
+    </el-dialog>
+
+    <el-dialog v-model="releaseDialogVisible" title="释放预占" width="420px">
+      <el-form label-width="90px">
+        <el-form-item label="预占ID">
+          <span>#{{ releasingReservation?.id }}</span>
+        </el-form-item>
+        <el-form-item label="预占数量">
+          <span class="status-warning"><strong>{{ releasingReservation?.quantity }}</strong></span>
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="releaseForm.remark" type="textarea" :rows="3" placeholder="可选，填写释放原因" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="releaseDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmReleaseReservation">确认释放</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -322,7 +413,7 @@ import {
   listInventory, createInventory, openInventory,
   outboundInventory, returnInventory, scrapInventory,
   inventoryCheck, getInventoryOperations,
-  reserveInventory
+  reserveInventory, listInventoryReservations, releaseReservation
 } from '@/api/inventory'
 import {
   STATUS_OPTIONS, getStatusLabel, getOperationTypeLabel
@@ -369,6 +460,13 @@ const opForm = reactive({ quantity_change: 1, remark: '' })
 
 const timelineVisible = ref(false)
 const operations = ref([])
+
+const reservationsVisible = ref(false)
+const reservationsLoading = ref(false)
+const reservations = ref([])
+const releaseDialogVisible = ref(false)
+const releasingReservation = ref(null)
+const releaseForm = reactive({ remark: '' })
 
 const opDialogTitle = computed(() => {
   const map = {
@@ -451,6 +549,10 @@ async function handleAddSubmit() {
 function handleOperation(type, row) {
   opType.value = type
   currentItem.value = row
+  if (type === 'reservations') {
+    viewReservations(row)
+    return
+  }
   if (type === 'scrap') {
     opForm.quantity_change = row.quantity
   } else if (type === 'reserve') {
@@ -511,6 +613,41 @@ async function viewTimeline(row) {
   try {
     operations.value = await getInventoryOperations(row.id)
     timelineVisible.value = true
+  } catch (e) {}
+}
+
+async function viewReservations(row) {
+  reservationsLoading.value = true
+  try {
+    const list = await listInventoryReservations(row.id)
+    reservations.value = list.map(r => {
+      if (r.released_by && r.released_by_name === undefined) {
+        r.released_by_name = r.releaser?.full_name || ''
+      }
+      return r
+    })
+    reservationsVisible.value = true
+  } catch (e) {
+  } finally {
+    reservationsLoading.value = false
+  }
+}
+
+function handleReleaseReservation(row) {
+  releasingReservation.value = row
+  releaseForm.remark = ''
+  releaseDialogVisible.value = true
+}
+
+async function confirmReleaseReservation() {
+  try {
+    await releaseReservation(releasingReservation.value.id, {
+      remark: releaseForm.remark
+    })
+    ElMessage.success('释放预占成功')
+    releaseDialogVisible.value = false
+    fetchData()
+    viewReservations(currentItem.value)
   } catch (e) {}
 }
 

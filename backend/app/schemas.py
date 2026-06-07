@@ -274,12 +274,14 @@ class StockReservationResponse(BaseModel):
     inventory_item: Optional[InventoryItemResponse] = None
     quantity: float
     requisition_id: Optional[int] = None
+    requisition_no: Optional[str] = None
     operator_id: int
     operator: Optional[UserResponse] = None
     remark: Optional[str] = None
     created_at: datetime
     released_at: Optional[datetime] = None
     released_by: Optional[int] = None
+    releaser: Optional[UserResponse] = None
     release_remark: Optional[str] = None
     is_released: bool
 

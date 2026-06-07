@@ -399,9 +399,23 @@ def reserve_inventory(
 
     db.commit()
     db.refresh(reservation)
-    reservation.operator
-    reservation.inventory_item
-    return reservation
+    return {
+        "id": reservation.id,
+        "inventory_item_id": reservation.inventory_item_id,
+        "inventory_item": reservation.inventory_item,
+        "quantity": reservation.quantity,
+        "requisition_id": reservation.requisition_id,
+        "requisition_no": reservation.requisition.requisition_no if reservation.requisition else None,
+        "operator_id": reservation.operator_id,
+        "operator": reservation.operator,
+        "remark": reservation.remark,
+        "created_at": reservation.created_at,
+        "released_at": reservation.released_at,
+        "released_by": reservation.released_by,
+        "releaser": reservation.releaser,
+        "release_remark": reservation.release_remark,
+        "is_released": reservation.is_released,
+    }
 
 
 @router.get("/{item_id}/reservations", response_model=List[StockReservationResponse])
@@ -418,10 +432,27 @@ def list_inventory_reservations(
     if only_active:
         query = query.filter(StockReservation.is_released == False)
     reservations = query.order_by(StockReservation.created_at.desc()).all()
+    result = []
     for r in reservations:
-        r.operator
-        r.inventory_item
-    return reservations
+        d = {
+            "id": r.id,
+            "inventory_item_id": r.inventory_item_id,
+            "inventory_item": r.inventory_item,
+            "quantity": r.quantity,
+            "requisition_id": r.requisition_id,
+            "requisition_no": r.requisition.requisition_no if r.requisition else None,
+            "operator_id": r.operator_id,
+            "operator": r.operator,
+            "remark": r.remark,
+            "created_at": r.created_at,
+            "released_at": r.released_at,
+            "released_by": r.released_by,
+            "releaser": r.releaser,
+            "release_remark": r.release_remark,
+            "is_released": r.is_released,
+        }
+        result.append(d)
+    return result
 
 
 @router.post("/reservations/{reservation_id}/release", response_model=StockReservationResponse)
@@ -469,6 +500,20 @@ def release_reservation(
 
     db.commit()
     db.refresh(reservation)
-    reservation.operator
-    reservation.inventory_item
-    return reservation
+    return {
+        "id": reservation.id,
+        "inventory_item_id": reservation.inventory_item_id,
+        "inventory_item": reservation.inventory_item,
+        "quantity": reservation.quantity,
+        "requisition_id": reservation.requisition_id,
+        "requisition_no": reservation.requisition.requisition_no if reservation.requisition else None,
+        "operator_id": reservation.operator_id,
+        "operator": reservation.operator,
+        "remark": reservation.remark,
+        "created_at": reservation.created_at,
+        "released_at": reservation.released_at,
+        "released_by": reservation.released_by,
+        "releaser": reservation.releaser,
+        "release_remark": reservation.release_remark,
+        "is_released": reservation.is_released,
+    }

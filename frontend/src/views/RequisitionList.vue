@@ -89,13 +89,14 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import dayjs from 'dayjs'
 import { useUserStore } from '@/stores/user'
 import { listRequisitions } from '@/api/requisitions'
 import { REQUISITION_STATUS_OPTIONS, getRequisitionStatusLabel, getRequisitionStatusType } from '@/utils/dict'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const canCreate = computed(() => ['admin', 'manager', 'operator'].includes(userStore.userInfo?.role))
 
@@ -134,5 +135,13 @@ function viewDetail(row) {
   router.push(`/requisitions/${row.id}`)
 }
 
-onMounted(fetchData)
+onMounted(() => {
+  if (route.query.status) {
+    filters.status = route.query.status
+  }
+  if (route.query.keyword) {
+    filters.keyword = route.query.keyword
+  }
+  fetchData()
+})
 </script>
