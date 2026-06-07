@@ -55,6 +55,21 @@ class WarningStatus(str, PyEnum):
     RESOLVED = "resolved"
 
 
+class StocktakeTaskStatus(str, PyEnum):
+    DRAFT = "draft"
+    IN_PROGRESS = "in_progress"
+    PENDING_REVIEW = "pending_review"
+    CONFIRMED = "confirmed"
+    CLOSED = "closed"
+
+
+class StocktakeItemStatus(str, PyEnum):
+    NOT_ENTERED = "not_entered"
+    SAVED = "saved"
+    SUBMITTED = "submitted"
+    CONFIRMED = "confirmed"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -131,9 +146,11 @@ class InventoryOperation(Base):
     operator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     operation_time = Column(DateTime, default=utc_now)
     remark = Column(Text)
+    stocktake_task_id = Column(Integer, ForeignKey("stocktake_tasks.id"), nullable=True)
 
     inventory_item = relationship("InventoryItem", back_populates="operations")
     operator = relationship("User", back_populates="operations")
+    stocktake_task = relationship("StocktakeTask", back_populates="operations")
 
 
 class Warning(Base):
@@ -161,3 +178,67 @@ class SystemConfig(Base):
     config_value = Column(Text)
     description = Column(Text)
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+
+class StocktakeTask(Base):
+    __tablename__ = "stocktake_tasks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_no = Column(String(50), unique=True, index=True, nullable=False)
+    title = Column(String(200), nullable=False)
+    description = Column(Text)
+    status = Column(Enum(StocktakeTaskStatus), default=StocktakeTaskStatus.DRAFT, nullable=False)
+
+    category_filter = Column(Enum(MaterialCategory), nullable=True)
+    location_filter = Column(String(200), nullable=True)
+    material_ids_filter = Column(Text, nullable=True, comment="逗号分隔的物料ID列表")
+
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=utc_now)
+    submitted_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    submitted_at = Column(DateTime, nullable=True)
+    confirmed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    confirmed_at = Column(DateTime, nullable=True)
+    closed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    closed_at = Column(DateTime, nullable=True)
+    close_reason = Column(Text, nullable=True)
+
+    items = relationship("StocktakeItem", back_populates="task", cascade="all, delete-orphan")
+    operations = relationship("InventoryOperation", back_populates="stocktake_task")
+    creator = relationship("User", foreign_keys=[created_by])
+    submitter = relationship("User", foreign_keys=[submitted_by])
+    confirmer = relationship("User", foreign_keys=[confirmed_by])
+    closer = relationship("User", foreign_keys=[closed_by])
+
+
+class StocktakeItem(Base):
+    __tablename__ = "stocktake_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("stocktake_tasks.id"), nullable=False)
+    inventory_item_id = Column(Integer, ForeignKey("inventory_items.id"), nullable=False)
+
+    snapshot_quantity = Column(Float, nullable=False, comment="快照账面数量")
+    snapshot_status = Column(Enum(InventoryStatus), nullable=False, comment="快照库存状态")
+    snapshot_original_expiry_date = Column(DateTime, nullable=False, comment="快照原始有效期")
+    snapshot_actual_expiry_date = Column(DateTime, nullable=True, comment="快照实际失效日期")
+    snapshot_location = Column(String(100), nullable=True, comment="快照存放位置")
+    snapshot_open_time = Column(DateTime, nullable=True, comment="快照开封时间")
+    snapshot_opened = Column(Boolean, default=False, comment="快照是否已开封")
+
+    actual_quantity = Column(Float, nullable=True, comment="实盘数量")
+    remark = Column(Text, nullable=True, comment="盘点备注")
+
+    status = Column(Enum(StocktakeItemStatus), default=StocktakeItemStatus.NOT_ENTERED, nullable=False)
+    saved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    saved_at = Column(DateTime, nullable=True)
+    submitted_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    submitted_at = Column(DateTime, nullable=True)
+    confirmed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    confirmed_at = Column(DateTime, nullable=True)
+
+    task = relationship("StocktakeTask", back_populates="items")
+    inventory_item = relationship("InventoryItem")
+    saver = relationship("User", foreign_keys=[saved_by])
+    submitter = relationship("User", foreign_keys=[submitted_by])
+    confirmer = relationship("User", foreign_keys=[confirmed_by])

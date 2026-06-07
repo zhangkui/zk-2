@@ -4,7 +4,8 @@ from pydantic import BaseModel, Field, ConfigDict
 
 from app.models import (
     UserRole, MaterialCategory, InventoryStatus,
-    OperationType, WarningType, WarningStatus
+    OperationType, WarningType, WarningStatus,
+    StocktakeTaskStatus, StocktakeItemStatus
 )
 
 
@@ -142,6 +143,7 @@ class InventoryOperationResponse(BaseModel):
     operator: Optional[UserResponse] = None
     operation_time: datetime
     remark: Optional[str] = None
+    stocktake_task_id: Optional[int] = None
 
 
 class WarningResponse(BaseModel):
@@ -171,8 +173,81 @@ class DashboardStats(BaseModel):
     expired_count: int
     low_stock_count: int
     total_operations_today: int
+    ongoing_stocktake_tasks: int
+    pending_review_diffs: int
 
 
 class PasswordChange(BaseModel):
     old_password: str
     new_password: str = Field(..., min_length=6)
+
+
+class StocktakeTaskCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    category_filter: Optional[MaterialCategory] = None
+    location_filter: Optional[str] = None
+    material_ids: Optional[List[int]] = None
+
+
+class StocktakeItemUpdate(BaseModel):
+    actual_quantity: Optional[float] = None
+    remark: Optional[str] = None
+
+
+class StocktakeItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    task_id: int
+    inventory_item_id: int
+    snapshot_quantity: float
+    snapshot_status: InventoryStatus
+    snapshot_original_expiry_date: datetime
+    snapshot_actual_expiry_date: Optional[datetime] = None
+    snapshot_location: Optional[str] = None
+    snapshot_open_time: Optional[datetime] = None
+    snapshot_opened: bool
+    actual_quantity: Optional[float] = None
+    remark: Optional[str] = None
+    status: StocktakeItemStatus
+    saved_at: Optional[datetime] = None
+    submitted_at: Optional[datetime] = None
+    confirmed_at: Optional[datetime] = None
+    current_quantity: Optional[float] = None
+    current_status: Optional[InventoryStatus] = None
+    diff_quantity: Optional[float] = None
+    inventory_item: Optional[InventoryItemResponse] = None
+
+
+class StocktakeTaskResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    task_no: str
+    title: str
+    description: Optional[str] = None
+    status: StocktakeTaskStatus
+    category_filter: Optional[MaterialCategory] = None
+    location_filter: Optional[str] = None
+    material_ids_filter: Optional[str] = None
+    created_by: int
+    created_at: datetime
+    submitted_by: Optional[int] = None
+    submitted_at: Optional[datetime] = None
+    confirmed_by: Optional[int] = None
+    confirmed_at: Optional[datetime] = None
+    closed_by: Optional[int] = None
+    closed_at: Optional[datetime] = None
+    close_reason: Optional[str] = None
+    items: Optional[List[StocktakeItemResponse]] = None
+    creator: Optional[UserResponse] = None
+    submitter: Optional[UserResponse] = None
+    confirmer: Optional[UserResponse] = None
+
+
+class StocktakeTaskCloseRequest(BaseModel):
+    close_reason: Optional[str] = None
+
+
+class StocktakeBatchUpdateRequest(BaseModel):
+    items: List[StocktakeItemUpdate]
+    item_ids: List[int]
